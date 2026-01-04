@@ -1,0 +1,4 @@
+psutil>=5.8.0
+rich>=13.0.0
+setuptools>=45.0.0
+wheel>=0.36.0

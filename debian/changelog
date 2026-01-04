@@ -1,0 +1,8 @@
+dgxtop (1.0.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Real-time CPU, GPU, memory, disk I/O, and network monitoring
+  * Interactive terminal UI with Rich library
+  * NVIDIA GPU support via nvidia-smi
+
+ -- DGXTOP Ubuntu Team <noreply@example.com>  Fri, 03 Jan 2025 12:00:00 +0000
