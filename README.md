@@ -115,7 +115,7 @@ docker run --rm -v "$(pwd)":/workspace ubuntu:24.04 bash -c "
 
 ## License
 
-MIT License - see LICENSE file for details.
+APACHE 2.0 License - see LICENSE file for details.
 
 ## Contributing
 
