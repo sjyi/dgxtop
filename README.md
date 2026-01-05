@@ -2,8 +2,7 @@
 
 A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with added volume transfer speed monitoring capabilities.
 
-
-<img width="1285" height="856" alt="image" src="https://github.com/user-attachments/assets/7fd2fca9-8ab8-4dd7-9fd6-235df02c1f03" />
+<img width="1623" height="928" alt="image" src="https://github.com/user-attachments/assets/04be8850-617c-4af0-8f1d-4a369cb8e7c2" />
 
 
 ## Features
