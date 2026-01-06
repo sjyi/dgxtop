@@ -54,6 +54,7 @@ dgxtop/
 ├── main.py             # Main application entry point
 ├── disk_monitor.py     # Disk I/O monitoring (/proc/diskstats)
 ├── system_monitor.py   # CPU, memory, network monitoring
+├── gpu_monitor.py      # GPU monitoring (nvidia-smi)
 └── display_manager.py  # Terminal UI management
 ```
 
@@ -78,6 +79,7 @@ Where:
 - **CPU Statistics**: `/proc/stat`
 - **Memory Statistics**: `/proc/meminfo`
 - **Network Statistics**: `/proc/net/dev`
+- **GPU Statistics:  `nvidia-smi`
 
 ## Requirements
 
