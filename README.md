@@ -79,7 +79,7 @@ Where:
 - **CPU Statistics**: `/proc/stat`
 - **Memory Statistics**: `/proc/meminfo`
 - **Network Statistics**: `/proc/net/dev`
-- **GPU Statistics:  `nvidia-smi`
+- **GPU Statistics**:  `nvidia-smi`
 
 ## Requirements
 
