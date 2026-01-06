@@ -8,7 +8,7 @@ A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with ad
 ## Features
 
 - **Volume Transfer Speed Monitoring**: Real-time read/write speed tracking per drive
-- **System Monitoring**: CPU, memory, and network statistics
+- **System Monitoring**: G10 GPU, CPU, memory, and network statistics
 - **Real-time Display**: Interactive terminal interface with customizable update intervals
 - **Lightweight**: Minimal dependencies, uses native Linux `/proc` filesystem
 - **Per-Drive Performance**: Detailed breakdown of I/O performance for each storage device
