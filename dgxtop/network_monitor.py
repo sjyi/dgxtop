@@ -3,11 +3,13 @@ Network I/O monitoring module for DGXTOP Ubuntu
 Handles reading /sys/class/net/*/statistics/ and calculating transfer speeds
 """
 
+import subprocess
+import sys
+
 import time
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from collections import deque
-
 
 @dataclass
 class NetworkStats:
@@ -81,31 +83,60 @@ class NetworkMonitor:
             return None
 
     def _get_available_interfaces(self) -> List[str]:
-        """Get list of available network interfaces"""
-        interfaces = []
+        """
+        Get list of connected network interfaces
+
+        Run ``nmcli device status`` and return a list of device names whose
+        STATE column is exactly ``"connected"`` and does not contain 
+        (externally).
+        """
+        # --------------------------------------------------------------
+        # 1️⃣  Execute the command
+        # --------------------------------------------------------------
         try:
-            # Read /proc/net/dev to get interface list (but don't parse stats)
-            with open(self.netdev_path, "r") as f:
-                lines = f.readlines()
+            result = subprocess.run(
+                ["nmcli", "device", "status"],
+                capture_output=True,
+                text=True,
+                check=True,          # raise if exit status != 0
+            )
+        except FileNotFoundError:
+            sys.stderr.write("Error: nmcli not found in PATH.\n")
+            sys.exit(1)
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(f"Error running nmcli: {e.stderr}\n")
+            sys.exit(1)
 
-            # Skip header lines (first 2 lines)
-            for line in lines[2:]:
-                line = line.strip()
-                if not line or ":" not in line:
-                    continue
+        # --------------------------------------------------------------
+        # 2️⃣  Split output into lines and drop the header
+        # --------------------------------------------------------------
+        lines = result.stdout.strip().splitlines()
+        if not lines:
+            return []                     # nothing to parse
 
-                # Split interface name from stats
-                interface, _ = line.split(":", 1)
-                interface = interface.strip()
+        data_lines = lines[1:]            # skip header
+        connected_devices: List[str] = []
 
-                # Only include interfaces that pass our filter
-                if self._is_displayable_interface(interface):
-                    interfaces.append(interface)
-        except IOError:
-            pass
+        # --------------------------------------------------------------
+        # 3️⃣  Parse each line
+        # --------------------------------------------------------------
+        for line in data_lines:
+            # ``split()`` collapses any whitespace and gives us the fields.
+            parts = line.split()
+            if len(parts) < 4:               # malformed line – ignore safely
+                continue
 
-        return interfaces
+            device, _, state, external = parts[0], parts[1], parts[2], parts[3]
+            # ----------------------------------------------------------
+            # 4️⃣  Keep ONLY when STATE is exactly "connected"
+            # and external is not "(externally)"
+            # ----------------------------------------------------------
+            if state.strip() == "connected":
+                if external.strip() != "(externally)":
+                    connected_devices.append(device)
 
+        return connected_devices
+    # --------------------------------------------------------------
     def _parse_net_dev(self) -> List[NetworkStats]:
         """Parse network interface statistics from /sys/class/net/*/statistics/"""
         stats = []
