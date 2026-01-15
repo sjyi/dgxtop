@@ -23,9 +23,10 @@ graph TB
     
     %% Utility Modules
     Logger[logger.py<br/>DGXTopLogger<br/>Logging System]
+    IBIFC[ibifc.py<br/>parse_ibdev2netdev<br/>InfiniBand Mapping]
     
-    %% External Dependencies (mentioned but may not exist)
-    RoCEStats[roce_stats<br/>get_roce_counters<br/>EXTERNAL/MISSING]
+    %% Test/Utility Scripts (standalone)
+    RoCEStats[roce_stats.py<br/>get_roce_counters<br/>Test Utility]
     
     %% Package Init
     Init[__init__.py<br/>Package Metadata<br/>Version Info]
@@ -44,7 +45,7 @@ graph TB
     RichUI --> Config
     
     %% Network Monitor Dependencies
-    NetworkMon -.->|imports| RoCEStats
+    NetworkMon --> IBIFC
     
     %% Styling
     classDef entryPoint fill:#e1f5ff,stroke:#01579b,stroke-width:3px
@@ -59,7 +60,7 @@ graph TB
     class Config config
     class SystemMon,GPUMon,DiskMon,NetworkMon monitor
     class RichUI ui
-    class Logger utility
+    class Logger,IBIFC utility
     class RoCEStats external
     class Init metadata
 ```
@@ -123,15 +124,19 @@ All monitoring modules follow a similar pattern: they read from system files/pro
 - **Dependencies**: None (standalone)
 
 #### `network_monitor.py` (NetworkMonitor)
-- **Purpose**: Monitor network interface statistics
+- **Purpose**: Monitor network interface statistics for both regular and RoCE/InfiniBand interfaces
 - **Data Sources**: 
-  - `/proc/net/dev` (Network statistics)
-  - `/sys/class/net/*/statistics/` (Interface stats)
+  - Regular interfaces: `/sys/class/net/*/statistics/`
+  - RoCE interfaces: `/sys/class/infiniband/*/ports/*/counters/`
   - `nmcli device status` (Connected interfaces via subprocess)
 - **Key Classes**: `NetworkStats`, `NetworkMonitor`
+- **Key Features**:
+  - Automatic detection of RoCE vs regular interfaces
+  - Unified interface for reading stats from both types
+  - History tracking for sparklines
 - **Dependencies**: 
-  - `ibifc.py` (InfiniBand device mapping)
-  - RoCE counter functionality integrated directly
+  - `ibifc.py` (InfiniBand device mapping - required for RoCE detection)
+  - RoCE counter reading integrated directly (no external dependency)
 
 ### UI Layer
 
@@ -159,10 +164,26 @@ All monitoring modules follow a similar pattern: they read from system files/pro
 - **Key Functions**: `get_logger()`, `log_system_info()`, etc.
 - **Dependencies**: None (standalone)
 
+#### `ibifc.py`
+- **Purpose**: InfiniBand device to network interface mapping
+- **Key Function**: `parse_ibdev2netdev()` - Parses output from `ibdev2netdev` command
+- **Returns**: Bidirectional dictionary mapping InfiniBand devices ↔ network interfaces
+- **Used By**: `network_monitor.py` for RoCE interface detection
+- **Dependencies**: None (standalone utility)
+
 #### `__init__.py`
 - **Purpose**: Package initialization and metadata
 - **Exports**: Version, author, description
 - **Dependencies**: None
+
+### Test/Utility Scripts
+
+#### `roce_stats.py`
+- **Purpose**: Standalone utility for reading RoCE counters
+- **Key Function**: `get_roce_counters()` - Reads InfiniBand port counters
+- **Used By**: Test scripts (`get-roce-counts.py`)
+- **Note**: Functionality also integrated into `network_monitor.py._read_roce_counters()`
+- **Status**: Kept for standalone testing utilities
 
 ## Data Flow
 
@@ -198,8 +219,9 @@ All monitoring modules follow a similar pattern: they read from system files/pro
 │  /proc/stat, /proc/meminfo              │
 │  /proc/diskstats, /proc/net/dev         │
 │  /sys/class/net/*/statistics/           │
+│  /sys/class/infiniband/*/ports/*/counters/ │
 │  nvidia-smi (subprocess)                │
-│  nmcli (subprocess)                     │
+│  nmcli, ibdev2netdev (subprocess)       │
 └─────────────────────────────────────────┘
 ```
 
@@ -221,12 +243,26 @@ All monitoring modules follow a similar pattern: they read from system files/pro
 
 ## Module Independence
 
-- **Fully Independent**: `config.py`, `logger.py`, `__init__.py`
+- **Fully Independent**: `config.py`, `logger.py`, `__init__.py`, `ibifc.py`
 - **Independent Monitors**: `system_monitor.py`, `gpu_monitor.py`, `disk_monitor.py`
 - **UI Dependent on Config**: `rich_ui.py` → `config.py`
+- **NetworkMonitor Dependencies**: `network_monitor.py` → `ibifc.py`
 - **Main Orchestrator**: `main.py` depends on all modules
+
+## Recent Changes
+
+### Files Removed (Redundancy Cleanup)
+- ❌ `get_ifc.py` - Functionality integrated into `network_monitor.py`
+- ❌ `enp_stats.py` - Duplicate of `roce_stats.py` functionality
+- ❌ `get-enp-counts.py` - Duplicate test script
+- ❌ `get-enp.counts.py` - Typo duplicate of `get-roce-counts.py`
+
+### Code Improvements
+- ✅ Fixed file handle leaks in `roce_stats.py`
+- ✅ Consolidated network interface discovery in `network_monitor.py`
+- ✅ Integrated RoCE counter reading directly into `network_monitor.py`
 
 ## Potential Issues
 
-1. **Missing Dependency**: `network_monitor.py` uses `ibifc.py` for InfiniBand device mapping (may fail gracefully if not available)
+1. **Optional Dependency**: `ibifc.py` requires `ibdev2netdev` command for RoCE interface detection (fails gracefully if not available)
 2. **Circular Dependencies**: None detected (clean architecture)
