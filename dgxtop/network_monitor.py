@@ -1,15 +1,26 @@
 """
 Network I/O monitoring module for DGXTOP Ubuntu
-Handles reading /sys/class/net/*/statistics/ and calculating transfer speeds
+Handles reading network interface statistics from:
+- Regular interfaces: /sys/class/net/*/statistics/
+- RoCE/InfiniBand interfaces: /sys/class/infiniband/*/ports/*/counters/
+Calculates transfer speeds for both interface types
 """
 
 import subprocess
 import sys
+import os
+import pathlib
 
 import time
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from collections import deque
+try:
+    # Try relative import first (when used as package module)
+    from .ibifc import parse_ibdev2netdev
+except ImportError:
+    # Fall back to absolute import (when run standalone)
+    from ibifc import parse_ibdev2netdev
 
 @dataclass
 class NetworkStats:
@@ -32,7 +43,12 @@ class NetworkStats:
 
 
 class NetworkMonitor:
-    """Monitor network interface statistics from /sys/class/net/*/statistics/"""
+    """Monitor network interface statistics for both regular and RoCE/InfiniBand interfaces
+    
+    Automatically detects interface type and uses the appropriate data source:
+    - Regular interfaces: /sys/class/net/<interface>/statistics/
+    - RoCE interfaces: /sys/class/infiniband/<device>/ports/<port>/counters/
+    """
 
     # Interfaces to exclude from display
     EXCLUDED_INTERFACES = ("lo", "virbr", "docker", "br-", "veth")
@@ -44,6 +60,64 @@ class NetworkMonitor:
         # History tracking for sparklines (matches disk_monitor pattern)
         self.rx_history = deque(maxlen=60)
         self.tx_history = deque(maxlen=60)
+        # Cache the InfiniBand device to interface mapping
+        self._ibdev_mapping: Optional[Dict[str, str]] = None
+        self._update_ibdev_mapping()
+
+#------------------------------------------------------------------------------
+    def _update_ibdev_mapping(self):
+        """Update the InfiniBand device to network interface mapping"""
+        try:
+            self._ibdev_mapping = parse_ibdev2netdev()
+        except (FileNotFoundError, subprocess.SubprocessError):
+            # ibdev2netdev not available, no RoCE interfaces
+            self._ibdev_mapping = {}
+
+    def _is_roce_interface(self, interface_name: str) -> bool:
+        """Check if interface is a RoCE (InfiniBand) interface"""
+        if self._ibdev_mapping is None:
+            self._update_ibdev_mapping()
+        # Check if interface is in the mapping (bidirectional, so either direction works)
+        return interface_name in self._ibdev_mapping
+
+    def _get_ibdev_from_interface(self, interface_name: str) -> Optional[str]:
+        """Get InfiniBand device name from network interface name"""
+        if self._ibdev_mapping is None:
+            self._update_ibdev_mapping()
+        return self._ibdev_mapping.get(interface_name)
+
+    def _read_roce_counters(self, device: str, port: int = 1) -> Optional[tuple]:
+        """
+        Reads RoCE counters from /sys/class/infiniband/<device>/ports/{port}/counters/
+        Returns (tx_pkts, tx_bytes, rx_pkts, rx_bytes, rx_errors, tx_errors) or None on error
+        """
+        try:
+            base = pathlib.Path(f"/sys/class/infiniband/{device}/ports/{port}/counters")
+            
+            tx_pkts_file = base / "port_xmit_packets"
+            tx_bytes_file = base / "port_xmit_data"
+            rx_pkts_file = base / "port_rcv_packets"
+            rx_bytes_file = base / "port_rcv_data"
+            tx_discard_file = base / "port_xmit_discards"
+            rx_error_file = base / "port_rcv_errors"
+
+            def read_counter_file(filepath: pathlib.Path) -> int:
+                try:
+                    with open(filepath, "r") as f:
+                        return int(f.read().strip())
+                except (IOError, ValueError):
+                    return 0
+
+            tx_pkts = read_counter_file(tx_pkts_file)
+            tx_bytes = read_counter_file(tx_bytes_file)
+            rx_pkts = read_counter_file(rx_pkts_file)
+            rx_bytes = read_counter_file(rx_bytes_file)
+            tx_discards = read_counter_file(tx_discard_file)
+            rx_errors = read_counter_file(rx_error_file)
+            
+            return tx_pkts, tx_bytes, rx_pkts, rx_bytes, rx_errors, tx_discards
+        except (IOError, OSError):
+            return None
 
     def _is_displayable_interface(self, interface_name: str) -> bool:
         """Check if interface should be displayed (exclude virtual interfaces)"""
@@ -53,19 +127,57 @@ class NetworkMonitor:
                 return False
         return True
 
+#------------------------------------------------------------------------------
     def _read_interface_stats(self, interface_name: str) -> Optional[NetworkStats]:
-        """Read statistics for a specific interface from /sys/class/net/<interface>/statistics/"""
+        """
+        Read statistics for a network interface.
+        For regular interfaces: reads from /sys/class/net/<interface>/statistics/
+        For RoCE interfaces: reads from /sys/class/infiniband/{device}/ports/1/counters/
+        """
+        # Check if this is a RoCE interface
+        if self._is_roce_interface(interface_name):
+            # Get InfiniBand device name from interface name
+            ib_device = self._get_ibdev_from_interface(interface_name)
+            if ib_device is None:
+                # Mapping not found, try regular interface stats
+                return self._read_regular_interface_stats(interface_name)
+            
+            # Read RoCE counters from InfiniBand
+            roce_data = self._read_roce_counters(ib_device, port=1)
+            if roce_data is None:
+                return None
+            
+            tx_pkts, tx_bytes, rx_pkts, rx_bytes, rx_errors, tx_errors = roce_data
+            
+            # RoCE counters: rx_bytes maps to port_rcv_data, tx_bytes to port_xmit_data
+            # rx_errors from port_rcv_errors, tx_errors from port_xmit_discards
+            return NetworkStats(
+                interface_name=interface_name,
+                rx_bytes=rx_bytes,
+                tx_bytes=tx_bytes,
+                rx_packets=rx_pkts,
+                tx_packets=tx_pkts,
+                rx_errors=rx_errors,
+                tx_errors=tx_errors,
+                rx_dropped=0,  # RoCE doesn't have dropped counters in standard location
+                tx_dropped=0,
+            )
+        else:
+            # Regular network interface - read from standard location
+            return self._read_regular_interface_stats(interface_name)
+
+    def _read_regular_interface_stats(self, interface_name: str) -> Optional[NetworkStats]:
+        """Read statistics for a regular network interface from /sys/class/net/<interface>/statistics/"""
         base_path = f"/sys/class/net/{interface_name}/statistics"
+        
+        def read_stat_file(filename: str) -> int:
+            try:
+                with open(f"{base_path}/{filename}", "r") as f:
+                    return int(f.read().strip())
+            except (IOError, ValueError):
+                return 0
 
         try:
-            # Read all statistics files
-            def read_stat_file(filename: str) -> int:
-                try:
-                    with open(f"{base_path}/{filename}", "r") as f:
-                        return int(f.read().strip())
-                except (IOError, ValueError):
-                    return 0
-
             stat = NetworkStats(
                 interface_name=interface_name,
                 rx_bytes=read_stat_file("rx_bytes"),
@@ -81,7 +193,7 @@ class NetworkMonitor:
         except IOError:
             # Interface doesn't exist or can't be read
             return None
-
+#------------------------------------------------------------------------------
     def _get_available_interfaces(self) -> List[str]:
         """
         Get list of connected network interfaces
@@ -138,7 +250,10 @@ class NetworkMonitor:
         return connected_devices
     # --------------------------------------------------------------
     def _parse_net_dev(self) -> List[NetworkStats]:
-        """Parse network interface statistics from /sys/class/net/*/statistics/"""
+        """Parse network interface statistics from all available interfaces
+        
+        Handles both regular and RoCE interfaces automatically
+        """
         stats = []
         available_interfaces = self._get_available_interfaces()
 
