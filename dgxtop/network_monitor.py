@@ -199,7 +199,7 @@ class NetworkMonitor:
         Get list of connected network interfaces
 
         Run ``nmcli device status`` and return a list of device names whose
-        STATE column is exactly ``"connected"`` and does not contain 
+        STATE column is exactly ``"connected"`` and does not contain
         (externally).
         """
         # --------------------------------------------------------------
