@@ -18,8 +18,8 @@ A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with ad
 Download the `.deb` package and install:
 
 ```bash
-wget  https://github.com/GigCoder-ai/dgxtop/blob/main/deb_build/dgxtop_1.0.0-1_all.deb
-sudo apt install ./dgxtop_1.0.0-1_all.deb
+wget  https://github.com/sjyi/dgxtop/blob/main/deb_build/dgxtop_1.1.0-1_all.deb
+sudo apt install ./dgxtop_1.1.0-1_all.deb
 ```
 
 That's it. Dependencies are installed automatically.
@@ -92,19 +92,19 @@ Where:
 ### On Ubuntu
 
 ```bash
-git clone https://github.com/gigcoder-ai/dgxtop.git
+git clone https://github.com/sjyi/dgxtop.git
 cd dgxtop
 
 sudo apt install debhelper dh-python python3-all python3-setuptools dpkg-dev
 dpkg-buildpackage -us -uc -b
 
-sudo apt install ../dgxtop_1.0.0-1_all.deb
+sudo apt install ../dgxtop_1.1.0-1_all.deb
 ```
 
 ### On macOS (using Docker)
 
 ```bash
-git clone https://github.com/gigcoder-ai/dgxtop.git
+git clone https://github.com/sjyi/dgxtop.git
 cd dgxtop
 
 docker run --rm -v "$(pwd)":/workspace ubuntu:24.04 bash -c "
@@ -115,7 +115,7 @@ docker run --rm -v "$(pwd)":/workspace ubuntu:24.04 bash -c "
   mkdir -p /workspace/deb_build && cp /tmp/build_area/*.deb /workspace/deb_build/
 "
 
-# Output: deb_build/dgxtop_1.0.0-1_all.deb
+# Output: deb_build/dgxtop_1.1.0-1_all.deb
 ```
 
 ## License

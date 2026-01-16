@@ -17,7 +17,7 @@ We welcome all types of contributions:
 
 ```bash
 # Fork the repository on GitHub, then clone your fork
-git clone https://github.com/GigCoder-ai/dgxtop.git
+git clone https://github.com/sjyi/dgxtop.git
 cd dgxtop
 ```
 

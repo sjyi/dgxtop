@@ -1,9 +1,9 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: dgxtop
-Source: https://github.com/gigcoder-ai/dgxtop
+Source: https://github.com/sjyi/dgxtop
 
 Files: *
-Copyright: 2024-2025 DGXTOP Ubuntu Team
+Copyright: 2026 SJYi 2024-2025 DGXTOP Ubuntu Team
 License: APACHE 2.0
 
                                  Apache License

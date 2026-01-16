@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="dgxtop",
-    version="1.0.0",
+    version="1.1.0",
     author="DGXTOP Ubuntu Team",
     author_email="team@dgxtop.com",
     description=(
@@ -17,7 +17,7 @@ setup(
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/gigcoder-ai/dgxtop",
+    url="https://github.com/sjyi/dgxtop",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

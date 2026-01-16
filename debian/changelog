@@ -1,3 +1,12 @@
+dgxtop (1.1.0-1) unstable; urgency=medium
+
+  * Updated to version 1.1.0
+  * Integrated RoCE/InfiniBand interface monitoring
+  * Removed redundant code and cleaned up codebase
+  * Fixed file handle leaks in roce_stats.py
+
+ -- DGXTOP Ubuntu Team <noreply@example.com>  Wed, 14 Jan 2026 23:37:38 -0500
+
 dgxtop (1.0.0-1) unstable; urgency=medium
 
   * Initial release
