@@ -1,6 +1,6 @@
 # DGXTOP for The DGX SPARK
 
-A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with added RoCE transfer speed monitoring capabilities.
+A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with added volume transfer speed, and RoCE monitoring.
 
 <img width="1500" height="350" alt="dgxtop-roce" src="assets/dgxtop-roce.png" />
 
@@ -8,6 +8,7 @@ A performance monitoring CLI tool for Ubuntu inspired by asitop for Mac, with ad
 ## Features
 
 - **Volume Transfer Speed Monitoring**: Real-time read/write speed tracking per drive
+- **RoCE Counters**: Real-time monitoring of RDMA over Converged Ethernet (RoCE) statistics
 - **System Monitoring**: GB10 GPU, CPU, memory, and network statistics
 - **Real-time Display**: Interactive terminal interface with customizable update intervals
 - **Lightweight**: Minimal dependencies, uses native Linux `/proc` filesystem
